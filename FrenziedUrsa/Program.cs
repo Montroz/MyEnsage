@@ -17,11 +17,17 @@ namespace FrenziedUrsa {
         private const int mouseToTargetRadius = 300;
         private const int earthShockRadius = 350;
 
+        private const int sleepTime = 2000; //ms
+
         static void Main(string[] args)
         {
             Game.OnUpdate += Game_OnUpdate;
             Console.WriteLine("Frenzied Ursa loaded!");
             Menu.AddItem(new MenuItem("comboKey", "Combo Key").SetValue(new KeyBind(32, KeyBindType.Press)));
+
+            var hotkey = new MenuItem("bkbKey", "Toggle hotkey for BKB").SetValue(
+               new KeyBind('P', KeyBindType.Toggle));
+            Menu.AddItem(hotkey);
             Menu.AddToMainMenu();
         }
 
@@ -46,7 +52,8 @@ namespace FrenziedUrsa {
             Item phase = me.FindItem("item_phase_boots");
             Item blink = me.FindItem("item_blink");
             Item abyssal = me.FindItem("item_abyssal_blade");
-            
+            Item sheepstick = me.FindItem("item_sheepstick");
+            Item bkb = me.FindItem("item_black_king_bar");
 
             Hero target = getLowHpTartet(me);
             
@@ -55,7 +62,7 @@ namespace FrenziedUrsa {
                 //autoblink and kill
 
                 if (!useUrsaCombo(me, target, overpower, enrage,
-                        blink, earthshock, phase, null))
+                        blink, earthshock, phase, null, null, null, false))
                 {
                     return;
                 }
@@ -67,6 +74,9 @@ namespace FrenziedUrsa {
                 target = me.ClosestToMouseTarget(mouseToTargetRadius);
 
                 bool isPressed = Menu.Item("comboKey").GetValue<KeyBind>().Active;
+
+                bool isBkbToogled = Menu.Item("bkbKey").GetValue<KeyBind>().Active;
+
                 if (isPressed && target != null)
                 {
                     if (!(blink != null && blink.CanBeCasted() && Utils.SleepCheck("blink")))
@@ -74,14 +84,16 @@ namespace FrenziedUrsa {
                         //no blink
                         if (calculateDistance(me, target) <= 500)
                         {
-                            //come to target and use combo
+                            //use combo W/O blink
                             if (!useUrsaCombo(me, target, overpower, enrage,
-                                        null, earthshock, phase, abyssal))
+                                        null, earthshock, phase, abyssal, sheepstick, bkb, isBkbToogled))
                             {
                                 return;
                             }
+
                         }
                         me.Attack(target);
+
                     } else
                     {
                         //prepare for blink
@@ -90,7 +102,7 @@ namespace FrenziedUrsa {
                         {
                             //use blink
                             if (!useUrsaCombo(me, target, overpower, enrage,
-                                        blink, earthshock, phase, abyssal))
+                                        blink, earthshock, phase, abyssal, sheepstick, bkb, isBkbToogled))
                             {
                                 return;
                             }
@@ -104,86 +116,107 @@ namespace FrenziedUrsa {
         }
 
         private static bool useUrsaCombo(Hero me, Hero target, Ability overpower, Ability enrage,
-            Item blink, Ability earthshock, Item phase, Item abyssal)
+            Item blink, Ability earthshock, Item phase, Item abyssal, Item sheepstick, Item bkb, bool isBkbToogled)
         {
-            if (!useAbility(overpower, "W"))
+            if (!useAbility(overpower, "W", null, false, me))
             {
                 return false;
             }
 
-            if (!useAbility(enrage, "R"))
+            if (!useAbility(enrage, "R", null, false, me))
             {
                 return false;
             }
 
-            if (!useAbility(blink, "blink", target.Position))
+            if (!useAbility(blink, "blink", target, true, me))
             {
                 return false;
             }
-
-            if (calculateDistance(me, target) <= earthShockRadius)
+            if (isBkbToogled)
             {
-                if (!useAbility(earthshock, "Q"))
+                if (!useAbility(bkb, "bkb", null, false, me))
                 {
                     return false;
                 }
             }
 
-            if (!useAbility(phase, "phase"))
+            if (calculateDistance(me, target) <= earthShockRadius)
+            {
+                if (!useAbility(earthshock, "Q", null, false, me))
+                {
+                    return false;
+                }
+            }
+
+            if (!useAbility(phase, "phase", null, false, me))
             {
                 return false;
             }
 
-            if (!useAbility(abyssal, "abyssal", target))
+            if (!useAbility(abyssal, "abyssal", target, false, me))
             {
                 return false;
-            }
+            } 
 
+            if (abyssal != null)
+            {
+                if (!abyssal.CanBeCasted())
+                {
+                    if ((abyssal.GetCooldown(0) - abyssal.Cooldown) > 1.95)
+                    {
+                        if (!useAbility(sheepstick, "sheepstick", target, false, me)) { 
+
+                            return false;
+                        }
+                    }
+                }
+            } else
+            {
+                if (!useAbility(sheepstick, "sheepstick", target, false, me))
+                {
+
+                    return false;
+                }
+            }
+                
             return true;
         }
 
-        private static bool useAbility(Ability ability, string codeWord, Hero target)
-        {
+        private static bool useAbility(Ability ability, string codeWord, Hero target, bool isPos, Hero me)
+        {         
             if (ability == null)
             {
                 return true;
             }
-            if (ability.CanBeCasted() && Utils.SleepCheck(codeWord))
-            {
-                ability.UseAbility(target);
-                Utils.Sleep(1500, codeWord);
+            
+            if (ability.CanBeCasted() && !ability.IsInAbilityPhase && Utils.SleepCheck(codeWord))
+            {              
+                if (target != null)
+                {
+                    if (isPos)
+                    {
+                        
+                        ability.UseAbility(target.Position);
+                    }
+                    else
+                    {
+                        ability.UseAbility(target);
+                    }
+                } else
+                {
+                    ability.UseAbility();
+                }
+                
+                Utils.Sleep(ability.GetCastDelay(me, target, true)*1000, codeWord);
+                
+                if (ability.CanBeCasted())
+                {
+                    return false;
+                }               
             }
-            return ability.CanBeCasted() ? false : true;
+            return true;
         }
 
-        private static bool useAbility(Ability ability, string codeWord, SharpDX.Vector3 position)
-        {
-            if (ability == null)
-            {
-                return true;
-            }
-            if (ability.CanBeCasted() && Utils.SleepCheck(codeWord))
-            {
-                ability.UseAbility(position);
-                Utils.Sleep(1500, codeWord);
-            }
-            return ability.CanBeCasted() ? false : true;
-        }
-
-        private static bool useAbility(Ability ability, string codeWord)
-        {
-            if (ability == null)
-            {
-                return true;
-            }
-            if (ability.CanBeCasted() && Utils.SleepCheck(codeWord))
-            {
-                ability.UseAbility();
-                Utils.Sleep(1500, codeWord);
-            }
-            return ability.CanBeCasted() ? false : true;
-        }  
-        
         private static float calculateDistance(Hero me, Hero target)
         {
             var pos = target.Position
