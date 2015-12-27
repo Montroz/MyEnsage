@@ -94,8 +94,9 @@ namespace FrenziedUrsa {
                             {
                                 return;
                             }
-                            me.Attack(target);
+                            
                         }
+                        me.Attack(target);
                     }
 
                 }
