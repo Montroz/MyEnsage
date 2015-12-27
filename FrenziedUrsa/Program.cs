@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace FrenziedUrsa {
     class Program
     {
-        private static readonly Menu Menu = new Menu("UrsaRage", "ursaRage", true, "npc_dota_hero_ursa", true);
+        private static readonly Menu Menu = new Menu("FrenziedUrsa", "frenziedUrsa", true, "npc_dota_hero_ursa", true);
 
         private const int blinkRadius = 1150;
         private const int mouseToTargetRadius = 300;
