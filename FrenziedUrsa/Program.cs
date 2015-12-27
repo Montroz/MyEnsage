@@ -2,6 +2,8 @@
 using Ensage.Common;
 using Ensage.Common.Extensions;
 using Ensage.Common.Menu;
+using SharpDX;
+using SharpDX.Direct3D9;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +14,7 @@ namespace FrenziedUrsa {
     class Program
     {
         private static readonly Menu Menu = new Menu("FrenziedUrsa", "frenziedUrsa", true, "npc_dota_hero_ursa", true);
-
+        private static Font text;
         private const int blinkRadius = 1150;
         private const int mouseToTargetRadius = 300;
         private const int earthShockRadius = 350;
@@ -21,14 +23,81 @@ namespace FrenziedUrsa {
 
         static void Main(string[] args)
         {
-            Game.OnUpdate += Game_OnUpdate;
             Console.WriteLine("Frenzied Ursa loaded!");
             Menu.AddItem(new MenuItem("comboKey", "Combo Key").SetValue(new KeyBind(32, KeyBindType.Press)));
 
             var hotkey = new MenuItem("bkbKey", "Toggle hotkey for BKB").SetValue(
                new KeyBind('P', KeyBindType.Toggle));
             Menu.AddItem(hotkey);
+
+            Menu.AddItem(new MenuItem("positionX", "X-Position").SetValue(
+                    new Slider(75, 0, Drawing.Width)));
+
+            Menu.AddItem(new MenuItem("positionY", "Y-Position").SetValue(
+                    new Slider(50, 0, Drawing.Height)));
+
             Menu.AddToMainMenu();
+
+            text = new Font( Drawing.Direct3DDevice9, new FontDescription
+                    {
+                        FaceName = "Calibri",
+                        Height = 16,
+                        OutputPrecision = FontPrecision.Default,
+                        Quality = FontQuality.Default
+                    });
+
+            if (!Game.IsInGame)
+            {
+                return;
+            }
+
+            Hero me = ObjectMgr.LocalHero;
+
+            if (me == null || me.ClassID != ClassID.CDOTA_Unit_Hero_Ursa)
+            {
+                return;
+            } else { 
+                Game.OnUpdate += Game_OnUpdate;
+                Drawing.OnPreReset += Drawing_OnPreReset;
+                Drawing.OnPostReset += Drawing_OnPostReset;
+                Drawing.OnEndScene += Drawing_OnEndScene;
+            }
+        }
+
+        static void Drawing_OnEndScene(EventArgs args)
+        {
+            if (Drawing.Direct3DDevice9 == null || Drawing.Direct3DDevice9.IsDisposed || !Game.IsInGame)
+                return;
+
+            var player = ObjectMgr.LocalPlayer;
+            if (player == null || player.Team == Team.Observer)
+                return;
+
+            int x = Menu.Item("positionX").GetValue<Slider>().Value, y = Menu.Item("positionY").GetValue<Slider>().Value;
+            var keyBind = Menu.Item("bkbKey").GetValue<KeyBind>();
+
+            if (!keyBind.Active)
+            {
+                text.DrawText(null, "Frenzied Ursa: Bkb WILL NOT be used in combo." +
+                        "Press \"" + (char)keyBind.Key + "\" to toogle it.", x, y, Color.White);
+            } else
+            {
+                text.DrawText(null, "Frenzied Ursa: Bkb WILL BE used in combo." +
+                        "Press \"" + (char)keyBind.Key + "\" to toogle it.", x, y, Color.White);
+            }
+            
+            
+
+        }
+
+        static void Drawing_OnPostReset(EventArgs args)
+        {
+            text.OnResetDevice();
+        }
+
+        static void Drawing_OnPreReset(EventArgs args)
+        {
+            text.OnLostDevice();
         }
 
         private static void Game_OnUpdate(EventArgs args)
