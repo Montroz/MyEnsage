@@ -52,34 +52,44 @@ namespace FrenziedAxe
             Item blink = me.FindItem("item_blink");
             Ability ult = me.Spellbook.SpellR;
 
-            Hero target = GetLowHpHeroInDistance(me, blinkRadius);
+            Hero target = null;
 
-            if (target != null && me.Health > 400 && blink != null && blink.CanBeCasted() && Utils.SleepCheck("blink"))
+            if (ult != null && ult.Level > 0)
             {
-                if (!useAbility(blink, "blink", target, true, me))
+                target = GetLowHpHeroInDistance(me, blinkRadius);
+
+                //check for blink
+                if (target != null && me.Health > 400 && blink != null && blink.CanBeCasted() && Utils.SleepCheck("blink"))
                 {
-                    return;
+                    if (!useAbility(blink, "blink", target, true, me))
+                    {
+                        return;
+                    }
+                }
+                
+                target = GetLowHpHeroInDistance(me, 400);
+
+                //check for ult
+                if (target != null && ult != null && (ult.Level > 0) && ult.CanBeCasted() && Utils.SleepCheck("ult"))
+                {
+                    if (!useAbility(ult, "ult", target, false, me))
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
             }
 
-            target = GetLowHpHeroInDistance(me, 400);
-
-            if (target != null && ult != null && ult.CanBeCasted() && Utils.SleepCheck("ult"))
-            {
-                if (!useAbility(ult, "ult", target, false, me))
-                {
-                    return;
-                } else
-                {
-                    return;
-                }
-            }
             Hero killedTarget = target;
 
             target = GetClosestHeroInAgro(me);
             
             if (target != null && !target.Equals(killedTarget))
             {
+                //agro+blade mail combo
                 int targetSpeed = target.MovementSpeed;
 
                 double agroDelay = agro.GetCastDelay(me, target, true);
@@ -98,7 +108,7 @@ namespace FrenziedAxe
                 {
                     if (!agro.CanBeCasted())
                     {
-                        if ((agro.Cooldown - agro.Cooldown) < 3.2)
+                        if ((agro.CooldownLength - agro.Cooldown) < 3.2)
                         {
                             if (!useAbility(bladeMail, "bladeMail", null, false, me))
                             {
