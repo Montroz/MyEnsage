@@ -80,8 +80,6 @@ namespace FrenziedAxe
             
             if (target != null && !target.Equals(killedTarget))
             {
-                Console.WriteLine(target.Health);
-                Console.WriteLine(ult.GetCastDelay(me, target));
                 int targetSpeed = target.MovementSpeed;
 
                 double agroDelay = agro.GetCastDelay(me, target, true);
