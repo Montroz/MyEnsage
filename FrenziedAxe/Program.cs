@@ -1,6 +1,7 @@
 ﻿using Ensage;
 using Ensage.Common;
 using Ensage.Common.Extensions;
+using Ensage.Common.Menu;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,25 +12,15 @@ namespace FrenziedAxe
 {
     class Program
     {
+        private static readonly Menu Menu = new Menu("FrenziedAxe", "frenziedAxe", true, "npc_dota_hero_axe", true);
+
         private const int agroDistance = 300;
         private const int blinkRadius = 1180;
 
         static void Main(string[] args)
         {
-            if (!Game.IsInGame)
-            {
-                return;
-            }
-
-            Hero me = ObjectMgr.LocalHero;
-
-            if (me == null || me.ClassID != ClassID.CDOTA_Unit_Hero_Axe)
-            {
-                return;
-            }
-            else {
-                Game.OnUpdate += Game_OnUpdate;
-            }
+            Menu.AddToMainMenu();
+            Game.OnUpdate += Game_OnUpdate;
         }
 
         private static void Game_OnUpdate(EventArgs args)
