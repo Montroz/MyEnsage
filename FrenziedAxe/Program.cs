@@ -2,6 +2,7 @@
 using Ensage.Common;
 using Ensage.Common.Extensions;
 using Ensage.Common.Menu;
+using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace FrenziedAxe
 
         private const int agroDistance = 300;
         private const int blinkRadius = 1180;
+        private const double agroDelay = 0.4; 
 
         static void Main(string[] args)
         {
@@ -52,18 +54,18 @@ namespace FrenziedAxe
                 //check for blink
                 if (target != null && me.Health > 400 && blink != null && blink.CanBeCasted() && Utils.SleepCheck("blink"))
                 {
-                    if (!useAbility(blink, "blink", target, true, me))
+                    if (!useAbilityAndGetResult(blink, "blink", target, true, me))
                     {
                         return;
                     }
                 }
                 
-                target = GetLowHpHeroInDistance(me, 400);
+                target = GetLowHpHeroInDistance(me, 300);
 
                 //check for ult
                 if (target != null && ult != null && (ult.Level > 0) && ult.CanBeCasted() && Utils.SleepCheck("ult"))
                 {
-                    if (!useAbility(ult, "ult", target, false, me))
+                    if (!useAbilityAndGetResult(ult, "ult", target, false, me))
                     {
                         return;
                     }
@@ -76,24 +78,17 @@ namespace FrenziedAxe
 
             Hero killedTarget = target;
 
-            target = GetClosestHeroInAgro(me);
-            
+            target = GetHeroInAgro(me);
+
             if (target != null && !target.Equals(killedTarget))
             {
                 //agro+blade mail combo
-                int targetSpeed = target.MovementSpeed;
 
-                double agroDelay = agro.GetCastDelay(me, target, true);
-                float distanceBefore = calculateDistance(me, target);
-                double distanceAfter = distanceBefore + targetSpeed * agroDelay;
-
-                if (distanceAfter <= agroDistance && target.IsAlive)
+                if (!useAbilityAndGetResult(agro, "agro", null, false, me))
                 {
-                    if (!useAbility(agro, "agro", null, false, me))
-                    {
-                        return;
-                    }
+                    return;
                 }
+                
 
                 if (agro != null)
                 {
@@ -101,7 +96,7 @@ namespace FrenziedAxe
                     {
                         if ((agro.CooldownLength - agro.Cooldown) < 3.2)
                         {
-                            if (!useAbility(bladeMail, "bladeMail", null, false, me))
+                            if (!useAbilityAndGetResult(bladeMail, "bladeMail", null, false, me))
                             {
                                 return;
                             }
@@ -112,7 +107,7 @@ namespace FrenziedAxe
 
         }
 
-        private static bool useAbility(Ability ability, string codeWord, Hero target, bool isPos, Hero me)
+        private static bool useAbilityAndGetResult(Ability ability, string codeWord, Hero target, bool isPos, Hero me)
         {
             if (ability == null)
             {
@@ -148,13 +143,6 @@ namespace FrenziedAxe
             return true;
         }
 
-        private static float calculateDistance(Hero me, Hero target)
-        {
-            var pos = target.Position;
-            var mePosition = me.Position;
-            return mePosition.Distance2D(pos);
-        }
-
         private static Hero GetLowHpHeroInDistance(Hero me, float maxDistance)
         {
             Item aghanim = me.FindItem("item_ultimate_scepter");
@@ -180,15 +168,61 @@ namespace FrenziedAxe
             return target;
         }
 
-        private static Hero GetClosestHeroInAgro(Hero me)
+        private static Hero GetHeroInAgro(Hero me)
         {
             
             var enemies = ObjectMgr.GetEntities<Hero>()
                     .Where(x => x.IsAlive && !x.IsIllusion && x.Team != me.Team).ToList();
 
-            Hero target = getHeroInDistance(me, enemies, agroDistance);
+            List<Hero> enemiesForAgro = new List<Hero>();
+
+            foreach (var hero in enemies)
+            {
+                int targetSpeed = hero.MovementSpeed;
+
+                float distanceBefore = calculateDistance(me, hero);
+
+                double distanceAfter = distanceBefore + targetSpeed * (agroDelay - getTimeToTurn(me, hero));
+
+                //Console.WriteLine("distanceBefore" + distanceBefore);
+                //Console.WriteLine("getTimeToTurn(me, hero)" + getTimeToTurn(me, hero));
+                //Console.WriteLine("distanceAfter" + distanceAfter);
+                if (distanceAfter <= agroDistance && hero.IsAlive)
+                {
+                    enemiesForAgro.Add(hero);
+                }
+            }
+
+            Hero target = null;
+            if (enemiesForAgro.Count > 0)
+            {
+                target = getHeroInDistance(me, enemiesForAgro, agroDistance);
+            }
 
             return target;
+        }
+
+        private static float calculateDistance(Hero me, Hero target)
+        {
+            var pos = target.Position;
+            var mePosition = me.Position;
+            return mePosition.Distance2D(pos);
+        }
+
+        private static double getTimeToTurn(Hero me, Hero enemy) {
+            Vector3 myPos = me.Position;
+            Vector3 enemyPos = enemy.Position;
+
+            var difX = myPos.X - enemyPos.X;
+            var difY = myPos.Y - enemyPos.Y;
+            var degree = Math.Atan2(difY, difX);
+
+            var enemyDirection = Math.Atan2(enemy.Vector2FromPolarAngle().Y, enemy.Vector2FromPolarAngle().X);
+
+            var difDegree = Math.Abs(enemyDirection - degree);
+            var turnRate = Game.FindKeyValues(enemy.Name + "/MovementTurnRate", KeyValueSource.Hero).FloatValue;
+            var timeToTurn = 0.03 * (Math.PI - difDegree) / turnRate;
+            return timeToTurn;
         }
 
         private static Hero getHeroInDistance(Hero me, List<Hero> enemies, float maxDistance)
