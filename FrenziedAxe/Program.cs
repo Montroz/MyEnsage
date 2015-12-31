@@ -23,18 +23,14 @@ namespace FrenziedAxe
         {
             Menu.AddToMainMenu();
             Game.OnUpdate += Game_OnUpdate;
+            Console.WriteLine("Frenzied Axe loaded!");
         }
 
         private static void Game_OnUpdate(EventArgs args)
         {
-            if (!Game.IsInGame)
-            {
-                return;
-            }
-
             Hero me = ObjectMgr.LocalHero;
 
-            if (me == null || me.ClassID != ClassID.CDOTA_Unit_Hero_Axe)
+            if (!Game.IsInGame || me == null || me.ClassID != ClassID.CDOTA_Unit_Hero_Axe)
             {
                 return;
             }
