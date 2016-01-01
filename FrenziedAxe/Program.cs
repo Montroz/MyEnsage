@@ -141,6 +141,23 @@ namespace FrenziedAxe
 
         private static Hero GetLowHpHeroInDistance(Hero me, float maxDistance)
         {
+            var enemies = ObjectMgr.GetEntities<Hero>()
+                    .Where(x => x.IsAlive && !x.IsIllusion && x.Team != me.Team && (getULtDamage(me) > (x.Health - 5)
+                    && NotDieFromBladeMail(x, me, getULtDamage(me)))).ToList();
+
+            Hero target = getHeroInDistance(me, enemies, maxDistance);
+
+            return target;
+        }
+
+        private static bool NotDieFromBladeMail(Unit enemy, Unit me, double damageDone)
+        {
+            return !(enemy.Modifiers.FirstOrDefault(modifier => modifier.Name == "modifier_item_blade_mail_reflect") != null 
+                && me.Health < damageDone);
+        }
+
+        private static int getULtDamage(Hero me)
+        {
             Item aghanim = me.FindItem("item_ultimate_scepter");
 
             int[] ultDamage;
@@ -151,17 +168,10 @@ namespace FrenziedAxe
             {
                 ultDamage = new int[3] { 250, 325, 400 };
             }
-
             var ultLevel = me.Spellbook.SpellR.Level;
-
             var damage = ultDamage[ultLevel - 1];
 
-            var enemies = ObjectMgr.GetEntities<Hero>()
-                    .Where(x => x.IsAlive && !x.IsIllusion && x.Team != me.Team && (damage > (x.Health - 5))).ToList();
-
-            Hero target = getHeroInDistance(me, enemies, maxDistance);
-
-            return target;
+            return damage;
         }
 
         private static Hero GetHeroInAgro(Hero me)
